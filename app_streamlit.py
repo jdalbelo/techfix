@@ -4,6 +4,7 @@ from supabase import create_client, Client
 import os
 from dotenv import load_dotenv
 from werkzeug.security import check_password_hash, generate_password_hash 
+from streamlit_autorefresh import st_autorefresh # <-- NOVA IMPORTAÇÃO
 
 st.set_page_config(page_title="TechFix Admin", layout="wide")
 
@@ -52,6 +53,13 @@ if not st.session_state["autenticado"]:
 # SISTEMA PRINCIPAL
 # ==========================================
 st.sidebar.markdown(f"**Bem-vindo, {st.session_state['username']}**")
+
+# --- NOVO: Botão de Refresh Manual ---
+if st.sidebar.button("🔄 Atualizar Página"):
+    st.rerun()
+st.sidebar.markdown("---")
+# -------------------------------------
+
 if st.sidebar.button("Terminar Sessão"):
     st.session_state["autenticado"] = False
     st.rerun()
@@ -72,6 +80,15 @@ f_status = st.sidebar.selectbox("Estado", ["Todos", "Aberto", "Em análise", "Ag
 
 with aba1:
     st.header("Ordens de Serviço")
+    
+    # --- NOVO: Auto-refresh a cada 2 minutos (120.000 ms) ---
+    col_titulo, col_refresh = st.columns([3, 1])
+    with col_refresh:
+        auto_refresh = st.checkbox("Auto-atualizar (2 min)")
+        if auto_refresh:
+            st_autorefresh(interval=120000, limit=None, key="refresh_consulta")
+    # --------------------------------------------------------
+
     dados_os = obter_dados("ordens_servico", "*, clientes(nome, email, celular_whatsapp)")
     if dados_os:
         df = pd.json_normalize(dados_os)
@@ -128,7 +145,7 @@ with aba2:
                     st.success(f"Cliente removido com sucesso!")
                     st.rerun()
                 except Exception as e:
-                    # Caso haja restrição de chave estrangeira (ex: o cliente tem uma OS associada)
+                    # Caso haja restrição de chave estrangeira
                     st.error(f"Erro ao excluir. Verifique se existem ordens de serviço vinculadas a este cliente. Detalhe: {e}")
             else:
                 st.warning("Marque a caixa de confirmação para poder excluir.")
